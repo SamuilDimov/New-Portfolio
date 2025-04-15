@@ -1,4 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, Suspense } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 import { gsap } from 'gsap';
 import './App.css';
 
@@ -9,12 +13,45 @@ const loadFonts = () => {
   document.head.appendChild(link);
 };
 
+function FBXModel({ url }) {
+  const group = useRef();
+  const { scene } = useThree();
+
+  useEffect(() => {
+    const loader = new FBXLoader();
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load('/public/thrasher-cards1.png');
+
+    loader.load(url, (fbx) => {
+      fbx.scale.set(0.01, 0.01, 0.01);
+      fbx.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          child.material = new THREE.MeshStandardMaterial({
+            map: texture,
+            side: THREE.DoubleSide,
+          });
+          child.material.needsUpdate = true;
+        }
+      });
+      group.current.add(fbx);
+    });
+  }, [url]);
+
+  useFrame(() => {
+    if (group.current) {
+      group.current.rotation.y += 0.005;
+    }
+  });
+
+  return <group ref={group} />;
+}
+
 function App() {
   const buttonRef = useRef(null);
   const titleRef = useRef(null);
   const nameRef = useRef(null);
-  const tickerRef = useRef(null);
-  const tickerTextRef = useRef(null);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -28,16 +65,6 @@ function App() {
       ease: "power2.out",
       delay: 0.2
     });
-
-    const el = buttonRef.current;
-    const toggleScale = scale => gsap.to(el, { scale, duration: 0.4, ease: "elastic.out(1, 0.5)" });
-    el.addEventListener("pointerenter", () => toggleScale(1.1));
-    el.addEventListener("pointerleave", () => toggleScale(1));
-
-    return () => {
-      el.removeEventListener("pointerenter", () => toggleScale(1.1));
-      el.removeEventListener("pointerleave", () => toggleScale(1));
-    };
   }, []);
 
   useEffect(() => {
@@ -72,112 +99,40 @@ function App() {
     });
   }, []);
 
-  useEffect(() => {
-    const nameEl = nameRef.current;
-
-    nameEl.addEventListener("mouseenter", () => {
-      gsap.to(nameEl, {
-        scale: 1.2,
-        duration: 0.4,
-        ease: "elastic.out(1, 0.5)"
-      });
-    });
-
-    nameEl.addEventListener("mouseleave", () => {
-      gsap.to(nameEl, {
-        scale: 1,
-        duration: 0.4,
-        ease: "elastic.out(1, 0.5)"
-      });
-    });
-  }, []);
-
-  useEffect(() => {
-    gsap.to(tickerRef.current, {
-      x: '-100%',
-      duration: 20,
-      ease: 'linear',
-      repeat: -1
-    });
-  }, []);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    const onMouseMove = (e) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 2;
-      const y = (e.clientY / window.innerHeight - 0.5) * 2;
-      const rotateX = y * 15;
-      const rotateY = -x * 15;
-
-      gsap.to(video, {
-        scale: 1.08,
-        rotateX: rotateX,
-        rotateY: rotateY,
-        transformOrigin: "center",
-        transformPerspective: 1200,
-        ease: "power2.out",
-        duration: 0.4
-      });
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    return () => window.removeEventListener("mousemove", onMouseMove);
-  }, []);
-
   return (
     <div className="app-container">
-      <video
-        ref={videoRef}
-        className="background-video"
-        autoPlay
-        muted
-        loop
-        playsInline
-        src="/background.mp4"
-      />
-
       <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-brand" ref={nameRef}>Samuil</div>
-          <ul className="navbar-links">
-            <li><a href="#">Home</a></li>
-            <li><a href="#work">Work</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#contact">Contact</a></li>
-          </ul>
+        <div className="navbar-left" ref={nameRef}>Samuil Dimov</div>
+        <div className="navbar-right">
+          <span className="navbar-date">&lt;date&gt; February–May, 2025 &lt;/date&gt;</span>
         </div>
       </nav>
 
-      <div className="ticker-wrapper">
-        <div className="ticker" ref={tickerRef}>
-          <strong ref={tickerTextRef}>
-          •GOOD JOB TRYING GOOD JOB WINNING GOOD JOB FAILING•
-          </strong>
+      <div className="landing-section">
+        <div className="text-column">
+          <h1 className="hero-title" ref={titleRef}>Creative Developer & Visual Storyteller</h1>
+          <p className="hero-subtitle">Building immersive, interactive digital experiences.</p>
+          <a href="#work" className="cta-button" ref={buttonRef}>View My Work</a>
+        </div>
+        <div className="model-column">
+          <Canvas shadows camera={{ position: [0, 1, 5], fov: 50 }}>
+            <hemisphereLight intensity={0.8} groundColor="#444" />
+            <directionalLight position={[3, 5, 3]} intensity={2} castShadow />
+            <ambientLight intensity={0.4} />
+            <Suspense fallback={null}>
+              <FBXModel url="/thrashercards.fbx" />
+            </Suspense>
+            <OrbitControls enableZoom={false} enablePan={false} />
+          </Canvas>
         </div>
       </div>
 
-      <div className="content-container">
-        <section className="hero-section">
-          <h1 className="hero-title" ref={titleRef}>Hi, I'm Samuil Dimov</h1>
-          <p className="hero-subtitle">Creative Developer & Visual Storyteller</p>
-          <a href="#work" className="cta-button" ref={buttonRef}>View My Work</a>
-        </section>
-
-        <section id="work" className="section">
-          <h2>Selected Work</h2>
-          <p>Portfolio projects will go here...</p>
-        </section>
-
-        <section id="about" className="section">
-          <h2>About Me</h2>
-          <p>Write something personal and professional about yourself here.</p>
-        </section>
-
-        <section id="contact" className="section">
-          <h2>Contact</h2>
-          <p>Drop me a line at <a href="mailto:you@example.com">you@example.com</a></p>
-        </section>
-      </div>
+      <footer className="bottom-nav">
+        <a href="#" className="nav-item active">Home</a>
+        <a href="#work" className="nav-item">My Work</a>
+        <a href="#about" className="nav-item">About</a>
+        <a href="#contact" className="nav-item">Contact</a>
+      </footer>
     </div>
   );
 }
